@@ -1,2 +1,10 @@
 # time_series_lib
-Time series libraries contains RNN, CTRNN, MEMS RNN.
+Time series libraries contain RNN, CTRNN, and MEMS RNN.
+We used Python 3.8 and TensorFlow 2.8.
+We changed the Recurrent.py file to support CTRNN, MEMS
+The following classes were added to Recurrent.py: SimpleMEMSCTRNNCell, SimpleMEMSCTRNN, SimpleCTRNNCell, and SimpleCTRNN to support the MEMS and CTRNN network.
+We used the TensorFlow auto differential for the backpropagation. 
+
+SimpleMEMSCTRNNCell parameters are discussed in MEMS CAS CTRNN NOT NORMALIZED APPROXIMATION.pdf.
+The call function is the core function for each cell, so it calls every time the forward pass is called, and the TensorFlow auto differentiates this function 
+
