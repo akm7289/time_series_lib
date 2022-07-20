@@ -9,7 +9,7 @@
 
 - To use the new cells you only need to define your model using the new class,here is an example
 ```sh
-    from keras import activations, Sequential, regularizers
+    from keras import activations, Sequential
     import tensorflow as tf
     from time_series_lib.Recurrent import SimpleMEMSCTRNN
     input_layer = Input((None, 1))
