@@ -9,6 +9,9 @@
 
 - To use the new cells you only need to define your model using the new class,here is an example
 ```sh
+    from keras import activations, Sequential, regularizers
+    import tensorflow as tf
+    from MEMSCTRNNLIB.Recurrent import SimpleMEMSCTRNN
     input_layer = Input((None, 1))
     alpha_=1 * (10 ** 5)
     displacement_=5.0 * (10 ** -6)
