@@ -8,7 +8,7 @@
 - The call function is the core function for each cell, so it calls every time the forward pass is called, and the TensorFlow auto differentiates this function.
 
 - To use the new cells you only need to define your model using the new class,here is an example
-'''sh
+```sh
     input_layer = Input((None, 1))
     alpha_=1 * (10 ** 5)
     displacement_=5.0 * (10 ** -6)
@@ -33,4 +33,4 @@
                v_factor=v_factor_)(layer2)
     model = tf.keras.Model(inputs=input_layer, outputs=output_)
   
-'''
+```
