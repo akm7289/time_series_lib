@@ -2019,7 +2019,7 @@ class SimpleMEMSCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
                stopper=0.000002,
                z_factor=0.9395,
                v_factor=4.9311 * (10 ** -20),
-
+               eps_MUL_A=(8.854 * (10 ** -12)) *(10**-7),
                **kwargs):
     if units < 0:
       raise ValueError(f'Received an invalid value for argument `units`, '
@@ -2063,6 +2063,7 @@ class SimpleMEMSCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
     self.stopper = stopper
     self.z_factor = z_factor
     self.v_factor = v_factor
+    self.eps_MUL_A=eps_MUL_A
 
   @tf_utils.shape_type_conversion
   def build(self, input_shape):
@@ -2170,8 +2171,20 @@ class SimpleMEMSCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
     new_z=tf.math.add(z_mul_z_factor,term2)
 
     new_z_minus_d_minus_stopper=tf.math.subtract(new_z,d_minus_stopper)
-    sigmiod__new_z_minus_d=tf.keras.activations.sigmoid(tf.math.multiply(new_z_minus_d_minus_stopper, self.alpha)) #5 after five zeros it stop learnig
-    new_v=tf.math.multiply(sigmiod__new_z_minus_d, w_mul_v)
+    d_minuse_new_z=tf.math.subtract(d, new_z)
+    #tf.print(d_minuse_new_z)
+
+    gain=tf.math.pow(10.0,13)
+
+    activation_function_ = tf.math.divide(self.eps_MUL_A,d_minuse_new_z)
+
+    activation_function_ = tf.math.multiply(activation_function_, gain)
+    #tf.print(activation_function_)
+
+    new_v=tf.math.multiply(activation_function_, w_mul_v)
+    # sigmiod__new_z_minus_d=tf.keras.activations.sigmoid(tf.math.multiply(new_z_minus_d_minus_stopper, self.alpha)) #5 after five zeros it stop learnig
+    # new_v=tf.math.multiply(sigmiod__new_z_minus_d, w_mul_v)
+
     #tf.print(new_v, output_stream=sys.stdout)
     # tf.print(k_i, output_stream=sys.stdout)
     # tf.print(new_z, output_stream=sys.stdout)
@@ -2607,6 +2620,7 @@ class SimpleMEMSCTRNN(RNN):
                stopper=0.000002,
                z_factor=0.9395,
                v_factor=4.9311 * (10 ** -20),
+               eps_MUL_A=(8.854 * (10 ** -12)) *(10**-7),
                **kwargs):
     if 'implementation' in kwargs:
       kwargs.pop('implementation')
@@ -2640,6 +2654,7 @@ class SimpleMEMSCTRNN(RNN):
         stopper=stopper,
         z_factor=z_factor,
         v_factor=v_factor,
+        eps_MUL_A=eps_MUL_A,
         **cell_kwargs)
     super(SimpleMEMSCTRNN, self).__init__(
         cell,
