@@ -2134,7 +2134,6 @@ class SimpleMEMSCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
     # v = states[0]  # previous memory state # v value
     z = states[1]  # previous carry state # z value
 
-
     z_factor_ = tf.constant(self.z_factor)
     a = tf.constant(self.v_factor)  # define as hyper-paramter in the future
     d = tf.constant(self.displacement)  # define as hyper-paramter in the future
@@ -2165,38 +2164,7 @@ class SimpleMEMSCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
     CapSensor_ = tf.math.divide(self.eps_MUL_A, d_minuse_new_z)
 
     output_voltage = tf.math.multiply(CapSensor_, gain)
-    new_v=output_voltage
-    tf.print(new_z, output_stream=sys.stdout)
-    #tf.print(type(new_z))
-    gap=tf.constant(0.0000045)
-    #gaps=tf.constant([[gap, gap, gap,gap,gap]])
-    a_zeros = tf.ones_like(new_z)
-    a_zeros=a_zeros*gap
-    tf.print(a_zeros)
-
-    new_z=tf.cond(tf.less(new_z,a_zeros),tf.math.subtract(new_z,new_z),tf.math.add(new_z,new_z))
-    tf.print(new_z, output_stream=sys.stdout)
-
-    # tf.print(activation_function_)
-
-    #new_v = tf.math.multiply(activation_function_, w_mul_v)
-    #=tf.keras.activations.sigmoid(tf.math.multiply(new_z_minus_d_minus_stopper, self.alpha)) #5 after five zeros it stop learnig
-    #new_v=sigmiod__new_z_minus_d
-    #new_v=tf.math.multiply(sigmiod__new_z_minus_d, gain)
-    # new_v=tf.math.multiply(sigmiod__new_z_minus_d, w_mul_v)
-
-    #tf.print(new_v, output_stream=sys.stdout)
-    # tf.print(k_i, output_stream=sys.stdout)
-    #tf.print(new_z, output_stream=sys.stdout)
-    # tf.print("*"*10, output_stream=sys.stdout)
-    # tf.print(new_z_minus_d_minus_stopper, output_stream=sys.stdout)
-
-    # new_v=backend.bias_add(new_v, b_i)
-    # tf.print('output')
-
-    # tf.print(new_v, output_stream=sys.stdout)
-    # tf.print(new_z, output_stream=sys.stdout)
-
+    new_v = output_voltage
     return new_v, [new_v, new_z]
 
   def get_config(self):
