@@ -9,8 +9,8 @@ import pandas as pd
 def function_generator(training=True, noise_multiplier=.25, N=5, sample_delay=0.01, gen_samples=10,frequecny_factor=1,freq_gt=1):
   # Selection Parametrs:
   A= 0.5 * np.random.random(size=N)
-  delta=2*np.pi *(np.random.random(size=N)-0.5)#
-  #delta = 2 * np.pi * (np.random.random(size=N))
+  #delta=2*np.pi *(np.random.random(size=N)-0.5)#
+  delta = 2 * np.pi * (np.random.random(size=N))
   omega=0.8+0.4 * np.random.random(size=N)
   #omega=0.008+.04*np.random.random(size=N)
   #omega=omega*frequecny_factor
@@ -22,7 +22,7 @@ def function_generator(training=True, noise_multiplier=.25, N=5, sample_delay=0.
     x=x_gt+noise_multiplier*(np.random.randn(gen_samples))
     #aditive interaction beween the N other signals:
     for i in range(N):
-      x=x+A[i]*np.sin((2*np.pi*t_samples-delta[i])/omega[i])+noise_multiplier*(np.random.randn(gen_samples))
+      x=x+A[i]*np.sin((2*np.pi*freq_gt*t_samples-delta[i])/omega[i])+noise_multiplier*(np.random.randn(gen_samples))
     # if the model is being used for training or performance evaluation , then return the ground truth signal as well
 
     if training:
