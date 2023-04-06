@@ -22,7 +22,7 @@ def function_generator(training=True, noise_multiplier=.25, N=5, sample_delay=0.
     x=x_gt+noise_multiplier*(np.random.randn(gen_samples))
     #aditive interaction beween the N other signals:
     for i in range(N):
-      x=x+A[i]*np.sin((2*np.pi*freq_gt*t_samples-delta[i])/omega[i])+noise_multiplier*(np.random.randn(gen_samples))
+      x=x+A[i]*np.sin(freq_gt*(2*np.pi*t_samples-delta[i])/omega[i])+noise_multiplier*(np.random.randn(gen_samples))
     # if the model is being used for training or performance evaluation , then return the ground truth signal as well
 
     if training:
@@ -40,11 +40,9 @@ def generate_training_data(num_of_generator=16, signal_frequency=300, window_siz
     for i in range(num_of_generator):
         generators_lst.append(function_generator(training=True, noise_multiplier=.25, N=5, sample_delay=MEMS_freq,
                                                  gen_samples=enviroment_end_time, freq_gt=signal_frequency))
-        batch_size=1
     noiesedList = []
     groundTruthList=[]
     generatorCounter = 0
-
     while(generatorCounter<num_of_generator):
         generatorID = generatorCounter % num_of_generator
         time = 0
@@ -68,19 +66,7 @@ def generate_training_data(num_of_generator=16, signal_frequency=300, window_siz
     #plt.plot(noiesedList.reshape(-1))
     return noiesedList,groundTruthList
 
-import matplotlib.pyplot as plt
 
-#data=generate_training_data(window_size=10,num_of_generator=5)
-#data.to_csv("./NewTrainingData/10window_size_32generators.csv", header=False, index=False)
-#testing=generate_testing_data(num_of_generator=1,window_size=10,rows=10000,MEMS_freq=10**-6)
-#testing.to_csv("./NewTrainingData/testing_10window_size.csv", header=False, index=False)
-
-#
-# plt.plot(testing[0],'-')
-#
-# plt.plot(testing[1])
-#
-# plt.show()
 
 
 
