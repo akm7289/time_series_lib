@@ -3357,7 +3357,7 @@ class ShuttleCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
                  eps=8.854 * (10 ** -12),
                  A=150 * (10 ** -9),  # Excitation Area
                  Am=100 * (10 ** -9),  # tunning area
-                 deltaT=0.000001,
+                 deltaT=10**-6,
                  **kwargs):
         if units < 0:
             raise ValueError(f'Received an invalid value for argument `units`, '
@@ -3398,6 +3398,7 @@ class ShuttleCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         self.eps = eps
         self.A = A  # Excitation Area
         self.Am = Am  # tunning area
+        self.deltaT=deltaT
         self.two_Eps_A_Vb_multipication_over_d_squared=(2 * self.eps * self.A * self.vb)/(self.d**2)
         self.two_zeta_omega_note_m=(2*self.zeta*self.omega_0*self.mass)
         self.omega_0_divided_by_two_zeta=self.omega_0/(2*self.zeta)
@@ -3437,11 +3438,11 @@ class ShuttleCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         self.built = True
 
 
-    def call(self, inputs, states, training=None):
+    def call_bu(self, inputs, states, training=None):
         print("ShuttleCTRNNCALL")
         prev_output = states[0] if tf.nest.is_nested(states) else states
         #tf.print(prev_output)
-        #tf.print(states)
+        tf.print(prev_output)
         #tf.print(inputs)
         dp_mask = self.get_dropout_mask_for_cell(inputs, training)
         rec_dp_mask = self.get_recurrent_dropout_mask_for_cell(
@@ -3479,10 +3480,21 @@ class ShuttleCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         z_dot = tf.math.subtract(Z_dot_first_term , Z_dot_second_term)
         next_z = tf.math.add(prev_output, tf.math.multiply(self.deltaT, z_dot))
 
+        for t in tf.range(10**4):
+            #tf.print(t)
+            wv_square_zi = backend.dot(next_z, wv_square)
+            force_first_term = tf.math.multiply(self.eps_A_over_d_cubic, wv_square_zi)
+            force_second_term = tf.math.multiply(self.two_Eps_A_Vb_multipication_over_d_squared, h)
+            force = tf.math.add(force_first_term, force_second_term)
+            Z_dot_first_term = tf.math.divide(force, self.two_zeta_omega_note_m)
+            Z_dot_second_term = tf.math.multiply(self.omega_0_divided_by_two_zeta, next_z)
+            z_dot = tf.math.subtract(Z_dot_first_term, Z_dot_second_term)
+            next_z=tf.math.add(next_z, tf.math.multiply(self.deltaT, z_dot))
+        #     y_pred.append(y_next)
+
         # output = h + backend.dot(prev_output, self.recurrent_kernel)
         # if self.activation is not None:
         #     output = self.activation(output)
-        #Abdallah
         #next_z=self.activation(next_z)
         #
 
@@ -3490,9 +3502,94 @@ class ShuttleCTRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         #tf.print(next_z)
 
         new_state = [next_z] if tf.nest.is_nested(states) else next_z
+        #####################################################################
+
+        # t_seq = inputs[:, :, 0]
+        # y0 = inputs[:, 0, 1:]
+        # import tensorflow_probability as tfp
+        #
+        # solver = tfp.math.ode.DormandPrince()
+        #
+        # def odefunc(t, y):
+        #     dydt = -y + tf.sin(t)
+        #     return dydt
+        #
+        # y_pred = []
+        # y_next = y0
+        # for t in tf.unstack(t_seq, axis=1):
+        #     y_next, _ = solver.solve(odefunc, t, y_next, solution_times=[t + 1e-6])
+        #     y_pred.append(y_next)
+        #
+        # y_pred = tf.stack(y_pred, axis=1)
+        # print(y_pred)
+
+
         #tf.print(next_z)
 
+
         return next_z, new_state # send gain and without gain.
+
+
+
+    def call(self, inputs, states, training=None):
+        print("ShuttleCTRNNCALL")
+        prev_output = states[0] if tf.nest.is_nested(states) else states
+        #tf.print(states)
+        #tf.print(states)
+        #tf.print(prev_output)
+        dp_mask = self.get_dropout_mask_for_cell(inputs, training)
+        rec_dp_mask = self.get_recurrent_dropout_mask_for_cell(
+            prev_output, training)
+
+        if dp_mask is not None:
+            tf.print("dp_mask is not None")
+            h = backend.dot(inputs * dp_mask, self.kernel)
+        else:
+            h = backend.dot(inputs, self.kernel)
+        if self.bias is not None:
+            # h = backend.bias_add(h, self.bias)
+            pass  # no biased
+
+        h = tf.math.multiply(h, self.input_gain)
+
+        if rec_dp_mask is not None:
+            tf.print("rec_dp_mask is not None")
+            prev_output = prev_output * rec_dp_mask
+
+        wv_square = backend.pow(self.recurrent_kernel, backend.constant(2))
+
+        # wv_square=tf.math.multiply(wv_square,0)
+        wv_square_zi = backend.dot(prev_output, wv_square)
+
+        force_first_term = tf.math.multiply(self.eps_A_over_d_cubic, wv_square_zi)
+
+        force_second_term = tf.math.multiply(self.two_Eps_A_Vb_multipication_over_d_squared, h)
+
+        force = tf.math.add(force_first_term, force_second_term)
+        # tf.print(force)
+
+        Z_dot_first_term = tf.math.divide(force, self.two_zeta_omega_note_m)
+        Z_dot_second_term = tf.math.multiply(self.omega_0_divided_by_two_zeta, prev_output)
+        z_dot = tf.math.subtract(Z_dot_first_term, Z_dot_second_term)
+        next_z = tf.math.add(prev_output, tf.math.multiply(self.deltaT, z_dot))
+
+        # output = h + backend.dot(prev_output, self.recurrent_kernel)
+        # if self.activation is not None:
+        #     output = self.activation(output)
+        # Abdallah
+        # next_z=self.activation(next_z)
+        #
+
+        output = tf.math.multiply(next_z, self.output_gain)
+        # tf.print(next_z)
+
+        new_state = [next_z] if tf.nest.is_nested(states) else next_z
+        #tf.print(new_state)
+        #tf.print(output)
+
+        #tf.print(output)
+
+        return output, new_state  # send gain and without gain.
 
     def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
         return _generate_zero_filled_state_for_cell(self, inputs, batch_size, dtype)
@@ -3652,6 +3749,7 @@ class ShuttleCTRNN(RNN):
                  eps=8.854 * (10 ** -12),
                  A=150 * (10 ** -9),  # Excitation Area
                  Am=100 * (10 ** -9),  # tunning area
+                 deltaT=10**-6,
                  **kwargs):
         if 'implementation' in kwargs:
             kwargs.pop('implementation')
@@ -3690,6 +3788,7 @@ class ShuttleCTRNN(RNN):
             eps = eps,
             A = A,  # Excitation Area
             Am = Am,  # tunning area
+            deltaT=deltaT,
             **cell_kwargs)
         super(ShuttleCTRNN, self).__init__(
             cell,
