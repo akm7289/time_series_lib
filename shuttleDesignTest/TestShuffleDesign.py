@@ -13,56 +13,69 @@ from CTRNNLIB.Recurrent import ShuttleCTRNN
 from CTRNNLIB.shuttleDesignTest.Generate_Data_Module import generate_training_data
 
 
-def train_deniosing_problem_rnn_window_size10_stateful_seq_to_seq(factor=1, window_size=10, shift=0):
+
+def train_deniosing_problem_MEMS_window_stateful_seq_to_seq(factor=1, window_size=10, shift=0):
     number_of_features = 1
     batch_size_=1
 
     # Generate some example data
 
-    x_train, y_train=generate_training_data(window_size=window_size, num_of_generator=10,enviroment_end_time=10*3392*10**-6)
+    x_train, y_train=generate_training_data(window_size=window_size, num_of_generator=25,enviroment_end_time=30*3392*10**-6,N_=5)
 
 
 
     x_train = factor * x_train+shift
     y_train = factor * y_train+shift
+    x_test = factor * x_train
+    y_test = factor * y_train
+    # Any RNN layer in Keras expects a 3D shape (batch_size, timesteps, features). This means you have timeseries data.
     input_layer = Input(batch_shape= (batch_size_,window_size,number_of_features),
                        name="input")
+    #input_layer = Input((window_size, 1))
     stateful_arg=True
 
     arg_vb = 10
-    arg_input_gain = 1
-    arg_output_gain = 10**7
-
+    arg_input_gain = 10
+    #arg_output_gain = 10**7
+    arg_output_gain = 5*(10**5)
+    min_weight = -100
+    max_weight = 100
+    reccurrent_min=5
+    recurrent_max=15
+    #recurrent_initializer=tf.keras.initializers.RandomNormal(mean=.3, stddev=0.05, seed=2)
     cell1 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=1, stddev=0.05, seed=1))(input_layer)
+                         input_gain=arg_input_gain, output_gain=arg_output_gain, kernel_constraint=MinMaxNorm(min_value=min_weight,max_value=max_weight),
+                         recurrent_constraint=MinMaxNorm(min_value=reccurrent_min,max_value=recurrent_max,rate=1), omega_0=14566.3706144)(input_layer)#f=1k
     cell2 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=2, stddev=0.05, seed=2))(input_layer)
+                         input_gain=arg_input_gain, output_gain=arg_output_gain,kernel_constraint=MinMaxNorm(min_value=min_weight,max_value=max_weight),
+                         recurrent_constraint=MinMaxNorm(min_value=reccurrent_min+2, max_value=recurrent_max), omega_0=12566.3706144)(input_layer)#f=2k
     cell3 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=1.5, stddev=0.05, seed=3))(input_layer)
+                         input_gain=arg_input_gain, output_gain=arg_output_gain, kernel_constraint=MinMaxNorm(min_value=min_weight,max_value=max_weight),
+                         recurrent_constraint=MinMaxNorm(min_value=reccurrent_min+4, max_value=recurrent_max), omega_0=18849.5559215)(input_layer)#f=3k
     cell4 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=1.75, stddev=0.05, seed=4))(input_layer)
+                         input_gain=arg_input_gain, output_gain=arg_output_gain, kernel_constraint=MinMaxNorm(min_value=min_weight,max_value=max_weight),
+                         recurrent_constraint=MinMaxNorm(min_value=reccurrent_min+5, max_value=recurrent_max), omega_0=25132.741)(input_layer)#4k
     cell5 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=1.1, stddev=0.05, seed=100))(input_layer)
+                         input_gain=arg_input_gain, output_gain=arg_output_gain,kernel_constraint=MinMaxNorm(min_value=min_weight,max_value=max_weight),
+                         recurrent_constraint=MinMaxNorm(min_value=reccurrent_min+7, max_value=recurrent_max), omega_0=31415.9265359)(input_layer)#5k
 
-
+    #
     rnn_1 = concatenate([cell1, cell2, cell3, cell4, cell5])
 
-    hidden_1 = layers.TimeDistributed(layers.Dense(5, activation='sigmoid'))(rnn_1)
-    output_ = layers.TimeDistributed(layers.Dense(1, activation='linear'))(hidden_1)
+
+    hidden_1 = layers.TimeDistributed(layers.Dense(5, activation='relu', kernel_constraint=MinMaxNorm(min_value=min_weight,max_value=max_weight), use_bias=False))(rnn_1)
+    output_ = layers.TimeDistributed(layers.Dense(1, activation='linear',kernel_constraint=MinMaxNorm(min_value=min_weight,max_value=max_weight), use_bias=False))(hidden_1)
 
     model = tf.keras.Model(inputs=input_layer, outputs=output_)  # output list [output_,...]
 
     model.compile(loss='mae',
-                  optimizer=Adam(learning_rate=0.001),
+                  optimizer=Adam(learning_rate=0.0001),
+                  # etrics=['mse', 'mae', 'mape']
                   metrics=['mse'],
 
                   )
-    n_epochs = 6
+    # train the network
+    n_epochs = 8
     for i in range(n_epochs):
         print("Epoch:", i + 1)
         for j in range(len(x_train)):
@@ -70,12 +83,11 @@ def train_deniosing_problem_rnn_window_size10_stateful_seq_to_seq(factor=1, wind
 
             model.reset_states()
             print("Reset State")
-    model.save_weights('../../models/shuttle_design_model.h5')
+    model.save_weights('../../models/shuttle_design_latest.h5')
     model.summary()
     for layer in model.layers:
         weights = layer.get_weights()
         print(weights)
-        print("*" * 100)
     print("-" * 300)
     # get_weights_custom_function(model, [5, 2, 1])
 
@@ -96,108 +108,12 @@ def train_deniosing_problem_rnn_window_size10_stateful_seq_to_seq(factor=1, wind
 
     plt.plot(output.reshape(-1), 'b',alpha=.8)
     plt.show()
-
-    #testMode_modified(model, factor, shift=shift, window_size=window_size, batch_size=batch_size_)
-def test_deniosing_problem_rnn_window_size10_stateful_seq_to_seq(factor=1, window_size=10, shift=0,model_path="../../models/shuttle_model_working_10windowsize.h5"):
-    number_of_features = 1
-    batch_size_=1
-
-    # Generate some example data
-
-
-    # Any RNN layer in Keras expects a 3D shape (batch_size, timesteps, features). This means you have timeseries data.
-    input_layer = Input(batch_shape= (batch_size_,window_size,number_of_features),
-                       name="input")
-    #input_layer = Input((window_size, 1))
-    stateful_arg=True
-    arg_vb = 10
-    arg_input_gain = 1
-    arg_output_gain = 10**7
-    #arg_output_gain = 10**0
-
-    cell1 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=1, stddev=0.05, seed=1))(input_layer)
-    cell2 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=2, stddev=0.05, seed=2))(input_layer)
-    cell3 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=1.5, stddev=0.05, seed=3))(input_layer)
-    cell4 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=1.75, stddev=0.05, seed=4))(input_layer)
-    cell5 = ShuttleCTRNN(1, vb=arg_vb, bias_initializer=tf.initializers.Zeros(), return_sequences=True, stateful=stateful_arg,
-                         input_gain=arg_input_gain, output_gain=arg_output_gain,
-                         recurrent_initializer=tf.keras.initializers.RandomNormal(mean=1.1, stddev=0.05, seed=100))(input_layer)
-
-    #
-    rnn_1 = concatenate([cell1, cell2, cell3, cell4, cell5])
-
-
-    hidden_1 = layers.TimeDistributed(layers.Dense(5, activation='sigmoid'))(rnn_1)
-    output_ = layers.TimeDistributed(layers.Dense(1, activation='linear'))(hidden_1)
-
-    model = tf.keras.Model(inputs=input_layer, outputs=output_)  # output list [output_,...]
-
-    model.compile(loss='mae',
-                  optimizer=SGD(learning_rate=0.001),
-                  metrics=['mse'],
-
-                  )
-    # train the network
-    model.load_weights(model_path)
-    model.summary()
-    for layer in model.layers:
-        weights = layer.get_weights()
-        print(weights)
-        print("*" * 100)
-    print("-" * 300)
-    # get_weights_custom_function(model, [5, 2, 1])
-
-    x_test, y_test = generate_training_data(window_size=window_size, num_of_generator=1,enviroment_end_time=5*3392*10**-6)
-    x_test=x_test.reshape(x_test.shape[1], window_size, number_of_features)
-    y_test=y_test.reshape(y_test.shape[1], window_size, number_of_features)
-
-    x_test = factor * x_test + shift
-    y_test = factor * y_test + shift
-
-    output=model.predict(x_test,batch_size=batch_size_)
-    plt.plot(y_test.reshape(-1),'r',alpha=1)
-    plt.plot(x_test.reshape(-1),'g',alpha=.6)
-    plt.xlabel("time*10^-6")
-    plt.ylabel("voltage")
-    plt.title("blue:Predicted Signal, Red: Ground Truth, Green:Noised Signal")
-
-
-
-    plt.plot(output.reshape(-1), 'b',alpha=.8)
-    plt.show()
-    import pandas as pd
-    excel_array=np.array([y_test.reshape(-1), x_test.reshape(-1),output.reshape(-1)])
-    excel_array=np.transpose(excel_array)
-    df = pd.DataFrame(excel_array,columns=['Ground Truth', 'Noised Signal', 'Model Output'])
-    df.to_csv('./output/file.csv', index=False)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
 if __name__ == '__main__':
     print('hi main')
+    window_size_arg=100
+    factor_arg=1
+    train_deniosing_problem_MEMS_window_stateful_seq_to_seq(factor=factor_arg, window_size=window_size_arg, shift=0)
 
-
-    train_deniosing_problem_rnn_window_size10_stateful_seq_to_seq(factor=1, window_size=10, shift=0)
-    test_deniosing_problem_rnn_window_size10_stateful_seq_to_seq(factor=1,window_size=10,shift=0)
